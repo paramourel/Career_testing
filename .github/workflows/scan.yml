@@ -1,0 +1,54 @@
+name: Job Scanner
+
+on:
+  schedule:
+    - cron: '0 */2 * * *'   # Every 2 hours
+  workflow_dispatch:          # Manual trigger from GitHub UI
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run job scanner
+        run: node scan.mjs
+
+      - name: Count new jobs
+        id: count
+        run: echo "total=$(node -e 'process.stdout.write(String(JSON.parse(require("fs").readFileSync("new-jobs.json","utf8")).length))')" >> $GITHUB_OUTPUT
+
+      - name: Open issue for new jobs
+        if: steps.count.outputs.total != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BODY=$(node -e '
+            const jobs = JSON.parse(require("fs").readFileSync("new-jobs.json","utf8"));
+            const lines = jobs.map(j =>
+              "- **" + j.company + "** — [" + j.title + "](" + j.url + ")" +
+              (j.location ? " (" + j.location + ")" : "")
+            );
+            console.log("## " + jobs.length + " new job(s) found\n\n" + lines.join("\n") + "\n\n*Scanned: ${{ github.run_id }}*");
+          ')
+          gh issue create \
+            --title "🔔 ${{ steps.count.outputs.total }} new job(s) — $(date -u '+%Y-%m-%d %H:%M UTC')" \
+            --body "$BODY"
+
+      - name: Commit updated seen-jobs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add seen-jobs.json
+          git diff --staged --quiet || git commit -m "chore: update seen-jobs [skip ci]" && git push
