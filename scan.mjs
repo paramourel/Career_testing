@@ -21,10 +21,32 @@ const TITLE_POSITIVE = [
 ];
 
 const TITLE_NEGATIVE = [
-  'Intern', '.NET', 'Sales Operations', 'Revenue Operations',
+  'Intern', 'Working Student', 'Werkstudent',
+  'Director', 'Vice President', ' VP ', 'Head of',
+  '.NET', 'Sales Operations', 'Revenue Operations',
   'iOS', 'Android', 'PHP', 'Ruby', 'Blockchain', 'Web3', 'Crypto',
   'COBOL', 'Mainframe', 'SAP ', 'Salesforce Admin',
+  'Integrations Developer', 'Software Engineer', 'Developer',
 ];
+
+// Europe-only location filter. Empty location string always passes (missing data).
+const LOCATION_ALLOW = [
+  'remote', 'europe', 'emea', 'germany', 'deutschland', 'berlin',
+  'netherlands', 'amsterdam', 'france', 'paris', 'united kingdom',
+  'london', 'spain', 'barcelona', 'madrid', 'ireland', 'dublin',
+  'sweden', 'stockholm', 'denmark', 'copenhagen', 'norway', 'oslo',
+  'finland', 'helsinki', 'belgium', 'brussels', 'switzerland', 'zurich',
+  'austria', 'vienna', 'portugal', 'lisbon', 'poland', 'warsaw',
+  'czech republic', 'prague', 'italy', 'milan', 'rome',
+  'sofia', 'bucharest', 'budapest', 'zagreb', 'belgrade', 'munich',
+  'hamburg', 'cologne', 'frankfurt', 'amsterdam', 'rotterdam',
+];
+
+function passesLocation(location) {
+  if (!location || location.trim() === '') return true; // missing = pass
+  const loc = location.toLowerCase();
+  return LOCATION_ALLOW.some(l => loc.includes(l));
+}
 
 const SEEN_PATH = 'seen-jobs.json';
 const COMPANIES_PATH = 'companies.json';
@@ -33,7 +55,7 @@ const NEW_JOBS_PATH = 'new-jobs.json';
 function passesFilter(title) {
   const t = title.toLowerCase();
   if (TITLE_NEGATIVE.some(n => t.includes(n.toLowerCase()))) return false;
-  return TITLE_POSITIVE.some(p => t.toLowerCase().includes(p.toLowerCase()));
+  return TITLE_POSITIVE.some(p => t.includes(p.toLowerCase()));
 }
 
 function loadSeen() {
@@ -140,6 +162,7 @@ async function main() {
 
     for (const job of jobs) {
       if (!passesFilter(job.title)) continue;
+      if (!passesLocation(job.location)) continue;
       const key = `${job.url}`;
       if (seen.has(key)) continue;
       newJobs.push(job);
